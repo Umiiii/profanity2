@@ -42,8 +42,31 @@ jobs:
         
     - name: Build
       run: make all
+
+    - name: Archive production artifacts
+      run: tar -czvf release.tgz profanity2.x64
       
-    - name: Create Release
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: build-artifact
+        path: release.tgz
+
+  create-release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Download build artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: build-artifact
+        path: .
+
+    - name: Create GitHub Release
       id: create_release
       uses: actions/create-release@v1
       env:
@@ -51,5 +74,17 @@ jobs:
       with:
         tag_name: ${{ github.ref }}
         release_name: Release ${{ github.ref }}
+        body: |
+          Release notes for ${{ github.ref }}
         draft: false
         prerelease: false
+
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./release.tgz
+        asset_name: release.tgz
+        asset_content_type: application/gzip
